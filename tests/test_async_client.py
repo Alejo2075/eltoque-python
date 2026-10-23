@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import date, datetime
 
@@ -132,3 +133,63 @@ async def test_http_client_and_transport_are_mutually_exclusive() -> None:
     with pytest.raises(exc.ElToqueConfigurationError):
         AsyncElToqueClient(TOKEN, http_client=http, transport=httpx.MockTransport(Recorder()))
     await http.aclose()
+
+
+@pytest.fixture
+def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    calls: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        calls.append(delay)
+
+    monkeypatch.setattr("eltoque._async_client.asyncio.sleep", fake_sleep)
+    return calls
+
+
+async def test_no_retries_by_default(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(429, headers={"Retry-After": "1"}))
+    with pytest.raises(exc.ElToqueRateLimitError):
+        await make(recorder).get_latest_rates()
+    assert len(recorder.requests) == 1
+    assert sleeps == []
+
+
+async def test_retry_after_is_honored_then_succeeds(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(429, headers={"Retry-After": "3"}), json_response([1]))
+    response = await make(recorder, max_retries=2).get_latest_rates()
+    assert response.data == [1]
+    assert sleeps == [3.0]
+
+
+async def test_retries_are_bounded(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(503))
+    with pytest.raises(exc.ElToqueServerError):
+        await make(recorder, max_retries=2).get_latest_rates()
+    assert len(recorder.requests) == 3
+    assert sleeps == [0.5, 1.0]
+
+
+@pytest.mark.parametrize("status", [400, 401, 422])
+async def test_client_errors_are_never_retried(status: int, sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(status))
+    with pytest.raises(exc.ElToqueAPIError):
+        await make(recorder, max_retries=3).get_latest_rates()
+    assert len(recorder.requests) == 1
+    assert sleeps == []
+
+
+async def test_cancellation_during_backoff_propagates(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def cancelled(delay: float) -> None:
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr("eltoque._async_client.asyncio.sleep", cancelled)
+    recorder = Recorder(httpx.Response(503))
+    with pytest.raises(asyncio.CancelledError):
+        await make(recorder, max_retries=3).get_latest_rates()
+    assert len(recorder.requests) == 1
+
+
+async def test_real_sleep_is_non_blocking() -> None:
+    recorder = Recorder(httpx.Response(429, headers={"Retry-After": "0"}), json_response())
+    response = await make(recorder, max_retries=1).get_latest_rates()
+    assert response.status_code == 200

@@ -4,6 +4,7 @@ Exchange rates are indicative, not official. Source: elTOQUE.
 Access requires registration and an application-specific API token.
 """
 
+from eltoque._async_client import AsyncElToqueClient
 from eltoque._client import ElToqueClient
 from eltoque._version import __version__
 from eltoque.exceptions import (
@@ -23,6 +24,7 @@ from eltoque.exceptions import (
 from eltoque.models import RateLimitInfo, RatesResponse
 
 __all__ = [
+    "AsyncElToqueClient",
     "ElToqueAPIError",
     "ElToqueAuthenticationError",
     "ElToqueBadRequestError",
