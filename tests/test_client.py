@@ -187,3 +187,69 @@ def test_http_client_and_transport_are_mutually_exclusive() -> None:
     with pytest.raises(exc.ElToqueConfigurationError):
         ElToqueClient(TOKEN, http_client=http, transport=httpx.MockTransport(Recorder()))
     http.close()
+
+
+@pytest.fixture
+def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    calls: list[float] = []
+    monkeypatch.setattr("eltoque._client.time.sleep", calls.append)
+    return calls
+
+
+def test_no_retries_by_default(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(429, headers={"Retry-After": "1"}))
+    with pytest.raises(exc.ElToqueRateLimitError):
+        make(recorder).get_latest_rates()
+    assert len(recorder.requests) == 1
+    assert sleeps == []
+
+
+def test_retry_after_is_honored_then_succeeds(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(429, headers={"Retry-After": "3"}), json_response([1]))
+    response = make(recorder, max_retries=2).get_latest_rates()
+    assert response.data == [1]
+    assert len(recorder.requests) == 2
+    assert sleeps == [3.0]
+
+
+def test_retries_are_bounded(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(503))
+    with pytest.raises(exc.ElToqueServerError):
+        make(recorder, max_retries=2).get_latest_rates()
+    assert len(recorder.requests) == 3
+    assert sleeps == [0.5, 1.0]
+
+
+def test_transport_errors_are_retried(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.ConnectError("x"), httpx.ReadTimeout("y"), json_response())
+    assert make(recorder, max_retries=2).get_latest_rates().status_code == 200
+    assert len(sleeps) == 2
+
+
+@pytest.mark.parametrize("status", [400, 401, 422])
+def test_client_errors_are_never_retried(status: int, sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(status))
+    with pytest.raises(exc.ElToqueAPIError):
+        make(recorder, max_retries=3).get_latest_rates()
+    assert len(recorder.requests) == 1
+    assert sleeps == []
+
+
+def test_excessive_retry_after_is_not_waited(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(429, headers={"Retry-After": "3600"}))
+    with pytest.raises(exc.ElToqueRateLimitError):
+        make(recorder, max_retries=3).get_latest_rates()
+    assert len(recorder.requests) == 1
+    assert sleeps == []
+
+
+def test_decode_errors_are_not_retried(sleeps: list[float]) -> None:
+    recorder = Recorder(httpx.Response(200, content=b"nope"))
+    with pytest.raises(exc.ElToqueDecodeError):
+        make(recorder, max_retries=3).get_latest_rates()
+    assert len(recorder.requests) == 1
+
+
+def test_invalid_max_retries_rejected() -> None:
+    with pytest.raises(exc.ElToqueConfigurationError):
+        ElToqueClient(TOKEN, max_retries=99)

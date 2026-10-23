@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Self
 
 import httpx
 
 from eltoque._config import DEFAULT_BASE_URL, DEFAULT_TIMEOUT, ClientConfig
 from eltoque._dates import validate_range
+from eltoque._retry import RetryPolicy
 from eltoque._transport import (
     FOLLOW_REDIRECTS,
     build_request_parts,
@@ -37,16 +39,22 @@ class ElToqueClient:
         *,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float | httpx.Timeout = DEFAULT_TIMEOUT,
+        max_retries: int = 0,
         transport: httpx.BaseTransport | None = None,
         http_client: httpx.Client | None = None,
     ) -> None:
         """Create a client.
 
+        ``max_retries`` (default 0, max 5) opts in to bounded retries for 429, 502/503/504 and
+        transport failures; every retry consumes API quota. ``Retry-After`` is honored.
+
         ``transport`` is a test seam (e.g. ``httpx.MockTransport``). ``http_client`` lets you
         share your own ``httpx.Client``: it is never closed by this SDK, its own timeout
         applies (``timeout`` is ignored) and redirects are still not followed for our requests.
         """
-        self._config = ClientConfig(api_token=api_token, base_url=base_url, timeout=timeout)
+        self._config = ClientConfig(
+            api_token=api_token, base_url=base_url, timeout=timeout, max_retries=max_retries
+        )
         if http_client is not None and transport is not None:
             raise ElToqueConfigurationError("pass either http_client or transport, not both")
         self._owns_http = http_client is None
@@ -95,6 +103,17 @@ class ElToqueClient:
 
     def _get(self, date_range: tuple[str, str] | None) -> RatesResponse:
         self._ensure_open()
+        policy = RetryPolicy.from_config(self._config)
+        while True:
+            try:
+                return self._get_once(date_range)
+            except ElToqueError as error:
+                delay = policy.next_delay(error)
+                if delay is None:
+                    raise
+                time.sleep(delay)
+
+    def _get_once(self, date_range: tuple[str, str] | None) -> RatesResponse:
         url, params, headers = build_request_parts(self._config, date_range)
         request = self._http.build_request("GET", url, params=params or None, headers=headers)
         try:
