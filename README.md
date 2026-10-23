@@ -227,10 +227,12 @@ uv run python -m build
 uv run twine check dist/*
 ```
 
-Optional live check, only with your own authorized token (never run in CI):
+Optional live check, only with your own authorized token (never run in CI). One request; the
+script prints the response shape, never provider values. See
+[docs/live-testing.md](docs/live-testing.md):
 
 ```bash
-ELTOQUE_API_TOKEN=... ELTOQUE_ALLOW_LIVE_TESTS=1 uv run pytest -m integration --no-cov
+ELTOQUE_API_TOKEN=... ELTOQUE_ALLOW_LIVE_TESTS=1 python scripts/live_check.py
 ```
 
 ## Security and legal

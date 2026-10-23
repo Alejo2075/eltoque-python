@@ -8,6 +8,12 @@ version (`1.0.beta`).
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/live_check.py`: opt-in single-request check against the real API that prints only the
+  response shape (never provider values), plus `docs/live-testing.md` with the validation
+  checklist for the first authorized run.
+
 ## [0.1.0] - 2026-10-22
 
 First release. Unpublished until the repository owner approves it (see docs/publishing.md).
