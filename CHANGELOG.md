@@ -8,6 +8,10 @@ version (`1.0.beta`).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-22
+
+First release. Unpublished until the repository owner approves it (see docs/publishing.md).
+
 ### Added
 
 - `ElToqueClient` and `AsyncElToqueClient` for the documented `GET /v1/trmi` operation:
