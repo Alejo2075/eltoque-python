@@ -97,3 +97,22 @@ def test_public_signatures_match() -> None:
         a = inspect.signature(getattr(eltoque.AsyncElToqueClient, name))
         assert list(s.parameters) == list(a.parameters), name
         assert inspect.iscoroutinefunction(getattr(eltoque.AsyncElToqueClient, name))
+
+
+async def test_same_typed_rates(kind: str) -> None:
+    from decimal import Decimal
+    from pathlib import Path
+
+    payload = Path(__file__).parent.joinpath("fixtures", "rates_synthetic.json").read_text("utf-8")
+    recorder = Recorder(httpx.Response(200, content=payload))
+    response = await call(kind, recorder, "get_latest_rates")
+    assert response.rates.rates["AAA"] == Decimal("100.5")
+    assert response.rates.reported_at == datetime(2026, 1, 15, 9, 5, 7)
+    assert response.data["tasas"]["AAA"] == 100.5  # raw payload untouched
+
+
+async def test_typed_rates_error_is_decode_error_for_both_clients(kind: str) -> None:
+    response = await call(kind, Recorder(json_response([1, 2])), "get_latest_rates")
+    assert response.data == [1, 2]
+    with pytest.raises(exc.ElToqueDecodeError):
+        _ = response.rates

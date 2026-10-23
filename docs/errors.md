@@ -8,7 +8,7 @@ Every exception raised by the SDK derives from `ElToqueError`.
 | `ElToqueValidationError` | Naive-datetime, ordering or 24-hour rule broken; non-`date` passed to `get_rates_for_day` | no (no request is made) |
 | `ElToqueNetworkError` | Connection, DNS, TLS, protocol or mid-body read failure | yes |
 | `ElToqueTimeoutError` | Connect, read, write or pool timeout | yes |
-| `ElToqueDecodeError` | 2xx body is empty, not JSON, or larger than 5 MiB | no |
+| `ElToqueDecodeError` | 2xx body is empty, not JSON, or larger than 5 MiB; also raised by `response.rates` when the payload does not match the confirmed shape | no |
 | `ElToqueBadRequestError` | HTTP 400, e.g. interval of 24 hours or more | no |
 | `ElToqueAuthenticationError` | HTTP 401: token wrong or expired | no |
 | `ElToqueUnprocessableError` | HTTP 422: check the token | no |

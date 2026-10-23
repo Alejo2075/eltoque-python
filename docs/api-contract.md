@@ -95,8 +95,9 @@ date_to`, window shorter than 24 h) because those rules are the documented contr
 - [ ] Behavior when no data exists for a window.
 - [ ] Whether the provider's clock skew and the stuck 429 state are persistent.
 
-Consequence: `RatesResponse.data` is still returned untouched. Typed `Decimal` models can now be
-built for the confirmed fields (`tasas` and the timestamp) while keeping `data` as the escape hatch.
+Consequence: `RatesResponse.data` is returned untouched, and `RatesResponse.rates` (class `Rates`)
+is a strictly validated `Decimal` view of the confirmed fields (`tasas` and the timestamp). It
+raises `ElToqueDecodeError` on any mismatch rather than guessing.
 
 ## Change log of the contract
 

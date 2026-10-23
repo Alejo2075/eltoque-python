@@ -42,6 +42,28 @@ with ElToqueClient(api_token=os.environ["ELTOQUE_API_TOKEN"]) as client:
 
 `get_latest_rates()` devuelve las tasas de las últimas 24 horas desde el momento de la petición.
 
+## Tasas tipadas
+
+`respuesta.data` es siempre el JSON original. `respuesta.rates` es una vista opcional y validada
+con la forma confirmada en la API real: códigos de moneda con valores `Decimal`.
+
+```python
+import os
+
+from eltoque import ATTRIBUTION, ElToqueClient
+
+with ElToqueClient(api_token=os.environ["ELTOQUE_API_TOKEN"]) as client:
+    tasas = client.get_latest_rates().rates
+
+usd = tasas.rates.get("USD")  # Decimal o None: el conjunto de códigos es abierto
+print(usd, tasas.reported_at)
+print(ATTRIBUTION)  # "Source: elTOQUE. Exchange rates are indicative, not official."
+```
+
+`reported_at` es la hora en que el proveedor calculó la respuesta (no la ventana pedida) y su zona
+horaria no está documentada. Si el formato cambia, `respuesta.rates` lanza `ElToqueDecodeError`
+y `respuesta.data` sigue funcionando.
+
 ## Uso asíncrono
 
 ```python
@@ -116,9 +138,10 @@ respetando `Retry-After`. Nunca se reintentan 400, 401 ni 422.
 
 ## Qué no sabemos todavía
 
-La documentación oficial **no publica el esquema de la respuesta exitosa**. Por eso
-`respuesta.data` es el JSON tal cual y no se garantizan nombres de campos (monedas, fechas...).
-Consulta [api-contract.md](api-contract.md) para ver qué está verificado.
+La documentación oficial **no publica el esquema de la respuesta exitosa**; el modelo `Rates` se
+basa en lo observado en la API real (2026-10-23), no en una garantía de elTOQUE. Además, la zona
+horaria no está documentada y la API es más permisiva que su documentación (acepta, por ejemplo,
+una ventana de exactamente 24 horas). Consulta [api-contract.md](api-contract.md).
 
 ## Atribución y aspectos legales
 

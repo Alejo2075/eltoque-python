@@ -78,6 +78,24 @@ with ElToqueClient(api_token=os.environ["ELTOQUE_API_TOKEN"]) as client:
     print(response.data)
 ```
 
+### Typed rates
+
+`response.data` is always the provider's JSON, untouched. `response.rates` is an optional,
+validated view of the shape confirmed against the live API: currency codes mapped to `Decimal`.
+
+```python
+import os
+
+from eltoque import ATTRIBUTION, ElToqueClient
+
+with ElToqueClient(api_token=os.environ["ELTOQUE_API_TOKEN"]) as client:
+    rates = client.get_latest_rates().rates
+
+usd = rates.rates.get("USD")  # Decimal or None: the set of codes is open
+print(usd, rates.reported_at)
+print(ATTRIBUTION)  # "Source: elTOQUE. Exchange rates are indicative, not official."
+```
+
 ### A specific window (shorter than 24 hours)
 
 ```python
@@ -160,9 +178,19 @@ Using a client after it was closed raises `ElToqueError`.
 | Attribute | Description |
 | --- | --- |
 | `data` | The decoded JSON body, **exactly as the provider sent it** (object, list, scalar or `null`). |
+| `rates` | Property: validated typed view, a `Rates` object (see below). Raises `ElToqueDecodeError` if the payload does not have the confirmed shape. |
 | `status_code` | HTTP status (SDK metadata). |
 | `rate_limit` | `RateLimitInfo` with optional `limit`, `remaining`, `reset`, `retry_after` (SDK metadata). |
 | `received_at` | UTC timestamp of when the SDK received the response (SDK metadata). |
+
+### `Rates`
+
+| Attribute | Description |
+| --- | --- |
+| `rates` | Read-only mapping of provider code (e.g. `"USD"`, `"USDT_TRC20"`) to `Decimal`. Values are the provider's, never rounded or converted. The set of codes is open and can change. |
+| `reported_at` | Naive `datetime` built from the response's `date`/`hour`/`minutes`/`seconds`. It is when the provider computed the answer, **not** the requested window; its time zone is undocumented (observed near UTC-4). |
+
+`eltoque.ATTRIBUTION` holds the source notice to show next to rates.
 
 ### Exceptions
 
@@ -207,10 +235,13 @@ may have different limits. Over the limit the API answers `429` with a `Retry-Af
 ## Known limitations
 
 - Only one operation is documented by the provider: `GET /v1/trmi`. That is all this SDK calls.
-- The provider **does not publish the schema of a successful response**, so `RatesResponse.data`
-  is untyped and no field (currency names, timestamps, ...) is guaranteed. Typed rate models will
-  come only after the schema is validated with authorized access.
+- The provider **does not publish a schema** for a successful response. The `Rates` view follows
+  what was observed on the live API (2026-10-23, see [docs/api-contract.md](docs/api-contract.md)),
+  not a promise from elTOQUE: if the payload changes, `response.rates` raises
+  `ElToqueDecodeError` while `response.data` keeps working.
 - The time zone of the API is undocumented (see above).
+- The API is more lenient than its documentation (for example it accepts a window of exactly 24 h
+  and a single `date_from`); the SDK stays with the documented rules.
 - Installing this SDK does not give you access to the API; you need your own approved token.
 
 ## Supported Python versions

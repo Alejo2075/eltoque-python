@@ -58,13 +58,10 @@ Compare windows shifted by the suspected offset and see which returns data for t
 expect. Also confirm what happens with a window of exactly 24 hours (expected: HTTP 400, which the
 SDK already rejects before sending) and with only one bound (the SDK refuses this today).
 
-## 4. Turn findings into code (Milestone B, release 0.2.0)
+## 4. What was done with the findings
 
-1. Update `docs/api-contract.md` with the sanitized shape and the date.
-2. Add `Decimal`-based typed models **only for confirmed fields**, keeping `RatesResponse.data` as
-   the untouched escape hatch. Use synthetic fixtures that mimic the confirmed shape.
-3. If the time zone is confirmed, document it in the README and decide whether timezone-aware
-   datetimes can be supported.
-4. Tests, changelog (`Added`), version bump, then follow [publishing.md](publishing.md).
-
-You can ask Claude Code to do step 4 from your sanitized notes.
+The first validation (2026-10-23) produced the typed `Rates` view and the notes in
+[api-contract.md](api-contract.md). When you re-run this check later, `typed_parse.ok` in the output
+tells you whether the provider's payload still matches. If it does not, update the contract notes
+and `Rates.from_payload`, add synthetic fixtures for the new shape, and follow
+[publishing.md](publishing.md).
