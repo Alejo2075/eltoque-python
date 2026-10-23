@@ -49,3 +49,36 @@ packages = ["src/eltoque"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/tests", "/docs", "/examples", "/README.md", "/LICENSE", "/CHANGELOG.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.format]
+exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "PT", "RUF", "S", "ASYNC", "TCH"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+"examples/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers --cov=eltoque --cov-report=term-missing --cov-fail-under=90"
+markers = [
+  "integration: calls the real elTOQUE API; opt-in only, never run in CI",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/eltoque"]
