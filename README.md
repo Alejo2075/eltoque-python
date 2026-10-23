@@ -1,4 +1,6 @@
-# eltoque-python
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Alejo2075/eltoque-python/main/assets/logo.png" alt="eltoque-python" width="480">
+</p>
 
 **Unofficial Python SDK for elTOQUE exchange-rate data.**
 A modern, typed client for the official elTOQUE exchange-rate API, with sync and async interfaces.
