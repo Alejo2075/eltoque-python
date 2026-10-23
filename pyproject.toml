@@ -74,7 +74,7 @@ files = ["src"]
 minversion = "8.0"
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-ra --strict-markers --cov=eltoque --cov-report=term-missing --cov-fail-under=90"
+addopts = "-ra --strict-markers -m 'not integration' --cov=eltoque --cov-report=term-missing --cov-fail-under=90"
 markers = [
   "integration: calls the real elTOQUE API; opt-in only, never run in CI",
 ]
