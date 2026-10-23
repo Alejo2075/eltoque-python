@@ -1,8 +1,10 @@
+import re
+
 import eltoque
 
 
 def test_version_is_exposed() -> None:
-    assert eltoque.__version__ == "0.1.0"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", eltoque.__version__)
 
 
 def test_all_names_resolve() -> None:
