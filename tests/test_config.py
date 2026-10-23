@@ -76,3 +76,44 @@ def test_invalid_limits(field: str) -> None:
 def test_zero_response_limit_rejected() -> None:
     with pytest.raises(ElToqueConfigurationError):
         ClientConfig(api_token=TOKEN, max_response_bytes=0)
+
+
+def test_default_base_url_is_official_https_origin() -> None:
+    assert ClientConfig(api_token=TOKEN).base_url == "https://tasas.eltoque.com"
+
+
+def test_trailing_slash_is_stripped() -> None:
+    assert ClientConfig(api_token=TOKEN, base_url="https://example.test/").base_url == (
+        "https://example.test"
+    )
+
+
+@pytest.mark.parametrize(
+    "url", ["http://localhost:8000", "http://127.0.0.1:9999", "http://[::1]:8080"]
+)
+def test_plain_http_allowed_for_loopback(url: str) -> None:
+    assert ClientConfig(api_token=TOKEN, base_url=url).base_url == url
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://tasas.eltoque.com",
+        "ftp://example.test",
+        "example.test",
+        "https://",
+        "",
+        "https://user:pw@example.test",
+        "https://example.test?x=1",
+        "https://example.test#frag",
+        "https://example.test:99999",
+    ],
+)
+def test_unsafe_or_malformed_base_urls_rejected(url: str) -> None:
+    with pytest.raises(ElToqueConfigurationError):
+        ClientConfig(api_token=TOKEN, base_url=url)
+
+
+def test_non_string_base_url_rejected() -> None:
+    with pytest.raises(ElToqueConfigurationError):
+        ClientConfig(api_token=TOKEN, base_url=None)  # type: ignore[arg-type]
