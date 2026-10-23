@@ -84,3 +84,34 @@ def test_shape_limits_depth_and_size() -> None:
     assert live_check.describe_shape(big)["<more keys>"] == 100 - live_check.MAX_ITEMS
     assert live_check.describe_shape(1e-7) == "float(decimals=exp)"
     assert live_check.describe_shape(object()) == "object"
+
+
+def test_reports_typed_parse_for_the_confirmed_shape(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("ELTOQUE_API_TOKEN", "fake.token")
+    monkeypatch.setenv("ELTOQUE_ALLOW_LIVE_TESTS", "1")
+    payload = {"date": "2026-01-15", "hour": 9, "minutes": 5, "seconds": 7, "tasas": {"AAA": 123.5}}
+    monkeypatch.setattr(
+        httpx.HTTPTransport,
+        "handle_request",
+        lambda self, request: httpx.Response(200, json=payload),
+    )
+    assert live_check.main() == 0
+    out = capsys.readouterr().out
+    assert '"typed_parse"' in out
+    assert '"ok": true' in out
+    assert "AAA" in out
+    assert "123.5" not in out
+
+
+def test_typed_parse_mismatch_is_reported_not_raised(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("ELTOQUE_API_TOKEN", "fake.token")
+    monkeypatch.setenv("ELTOQUE_ALLOW_LIVE_TESTS", "1")
+    monkeypatch.setattr(
+        httpx.HTTPTransport, "handle_request", lambda self, request: httpx.Response(200, json=[1])
+    )
+    assert live_check.main() == 0
+    assert '"ok": false' in capsys.readouterr().out

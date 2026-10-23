@@ -34,3 +34,7 @@ def test_latest_rates_returns_decodable_json() -> None:
         response = client.get_latest_rates()
     assert response.status_code == 200
     assert response.data is not None
+    # Confirmed shape (2026-10-23): fails loudly if the provider changes its payload.
+    typed = response.rates
+    assert typed.rates
+    assert all(value > 0 for value in typed.rates.values())

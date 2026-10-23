@@ -6,14 +6,16 @@ Run: ELTOQUE_API_TOKEN=... python examples/async_basic.py
 import asyncio
 import os
 
-from eltoque import AsyncElToqueClient
+from eltoque import ATTRIBUTION, AsyncElToqueClient
 
 
 async def main() -> None:
     async with AsyncElToqueClient(api_token=os.environ["ELTOQUE_API_TOKEN"]) as client:
         response = await client.get_latest_rates()
     print(response.data)
-    print("Source: elTOQUE (reference estimates, not official rates)")
+    for code, value in response.rates.rates.items():
+        print(f"{code}: {value}")
+    print(ATTRIBUTION)
 
 
 if __name__ == "__main__":

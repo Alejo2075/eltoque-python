@@ -7,7 +7,7 @@ Run: ELTOQUE_API_TOKEN=... python examples/date_range.py
 import os
 from datetime import datetime
 
-from eltoque import ElToqueClient
+from eltoque import ATTRIBUTION, ElToqueClient
 
 
 def main() -> None:
@@ -17,7 +17,7 @@ def main() -> None:
             datetime(2022, 10, 27, 23, 59, 59),
         )
     print(response.data)
-    print("Source: elTOQUE (reference estimates, not official rates)")
+    print(ATTRIBUTION)
 
 
 if __name__ == "__main__":

@@ -40,7 +40,16 @@ def _snippets() -> Iterator[pytest.param]:  # type: ignore[valid-type]
 def mocked_network(monkeypatch: pytest.MonkeyPatch) -> None:
     def handle(self: httpx.HTTPTransport, request: httpx.Request) -> httpx.Response:
         return httpx.Response(
-            200, json={"synthetic": True}, headers={"X-RateLimit-Remaining": "59"}
+            200,
+            json={
+                "synthetic": True,
+                "date": "2026-01-15",
+                "hour": 9,
+                "minutes": 5,
+                "seconds": 7,
+                "tasas": {"AAA": 100.5, "BBB": 250.25},
+            },
+            headers={"X-RateLimit-Remaining": "59"},
         )
 
     async def ahandle(self: httpx.AsyncHTTPTransport, request: httpx.Request) -> httpx.Response:

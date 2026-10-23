@@ -5,10 +5,11 @@
 Refuses to run unless BOTH variables are set: the token must be the one you registered for this
 application and you must explicitly accept spending one request of its quota.
 
-It prints only the *shape* of the response (types, keys, list lengths, decimal places), the HTTP
-status and the rate-limit metadata. Provider values are never printed, so the output can be
-pasted into docs/api-contract.md without redistributing elTOQUE data. Review it before sharing:
-object keys are shown as-is, and a key could itself be data.
+It prints only the *shape* of the response (types, keys, list lengths, decimal places), whether the
+typed ``Rates`` view parses it, the HTTP status and the rate-limit metadata. Provider values
+are never printed, so the output can be pasted into docs/api-contract.md without
+redistributing elTOQUE data. Review it before sharing: object keys are shown as-is, and a key
+could itself be data.
 """
 
 from __future__ import annotations
@@ -66,6 +67,10 @@ def main() -> int:
     except eltoque.ElToqueError as error:
         print(f"{type(error).__name__}: {error}", file=sys.stderr)
         return 1
+    try:
+        typed: dict[str, Any] = {"ok": True, "codes": sorted(response.rates.rates)}
+    except eltoque.ElToqueDecodeError as error:
+        typed = {"ok": False, "error": str(error)}
     report = {
         "status_code": response.status_code,
         "rate_limit": {
@@ -73,6 +78,7 @@ def main() -> int:
             "remaining": response.rate_limit.remaining,
             "reset": response.rate_limit.reset,
         },
+        "typed_parse": typed,
         "shape": describe_shape(response.data),
     }
     print(json.dumps(report, indent=2, ensure_ascii=False))
