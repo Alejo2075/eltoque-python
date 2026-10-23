@@ -8,15 +8,11 @@ de cambio de elTOQUE. No está desarrollado, patrocinado, respaldado ni soportad
 
 ## Instalación
 
-El paquete todavía **no está publicado en PyPI**. Por ahora, desde un clon local:
-
 ```bash
-git clone <este repositorio>
-cd eltoque-python
-pip install -e .
+pip install eltoque-python
 ```
 
-Cuando se publique: `pip install eltoque-python`. Requiere Python 3.11 o superior.
+Requiere Python 3.11 o superior.
 
 ## Obtener un token
 

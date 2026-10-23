@@ -3,6 +3,11 @@
 **Unofficial Python SDK for elTOQUE exchange-rate data.**
 A modern, typed client for the official elTOQUE exchange-rate API, with sync and async interfaces.
 
+[![PyPI](https://img.shields.io/pypi/v/eltoque-python)](https://pypi.org/project/eltoque-python/)
+[![Python](https://img.shields.io/pypi/pyversions/eltoque-python)](https://pypi.org/project/eltoque-python/)
+[![CI](https://github.com/Alejo2075/eltoque-python/actions/workflows/ci.yml/badge.svg)](https://github.com/Alejo2075/eltoque-python/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 > **Independent project.** `eltoque-python` is community-maintained. It is not developed,
 > sponsored, endorsed or supported by elTOQUE.
 >
@@ -36,15 +41,11 @@ Leer en español: [docs/quickstart.es.md](docs/quickstart.es.md)
 
 ## Installation
 
-The package is **not published on PyPI yet**. Until it is, install from a local clone:
-
 ```bash
-git clone <this repository>
-cd eltoque-python
-pip install -e .
+pip install eltoque-python
 ```
 
-Once published, the command will be `pip install eltoque-python`. Requires Python 3.11 or newer.
+Requires Python 3.11 or newer. To work on the SDK itself, install from a clone with `pip install -e .`.
 
 ## Get your API token
 
@@ -209,7 +210,6 @@ may have different limits. Over the limit the API answers `429` with a `Retry-Af
   come only after the schema is validated with authorized access.
 - The time zone of the API is undocumented (see above).
 - Installing this SDK does not give you access to the API; you need your own approved token.
-- Integration against the real API has not been verified by this repository's CI.
 
 ## Supported Python versions
 
