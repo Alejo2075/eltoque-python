@@ -82,3 +82,53 @@ async def test_redirect_is_not_followed() -> None:
 
 def test_repr_has_no_token() -> None:
     assert TOKEN not in repr(make(Recorder(json_response())))
+
+
+async def test_async_context_manager_closes_client() -> None:
+    recorder = Recorder(json_response())
+    async with make(recorder) as client:
+        await client.get_latest_rates()
+    with pytest.raises(exc.ElToqueError, match="closed"):
+        await client.get_latest_rates()
+    assert len(recorder.requests) == 1
+
+
+async def test_aclose_is_idempotent_and_closes_owned_client() -> None:
+    client = make(Recorder(json_response()))
+    await client.aclose()
+    await client.aclose()
+    assert client._http.is_closed
+
+
+async def test_cannot_reenter_closed_client() -> None:
+    client = make(Recorder(json_response()))
+    await client.aclose()
+    with pytest.raises(exc.ElToqueError, match="closed"):
+        async with client:
+            pass
+
+
+async def test_injected_client_is_used_and_not_closed() -> None:
+    recorder = Recorder(json_response())
+    http = httpx.AsyncClient(transport=httpx.MockTransport(recorder))
+    async with AsyncElToqueClient(TOKEN, http_client=http) as client:
+        await client.get_latest_rates()
+    assert len(recorder.requests) == 1
+    assert not http.is_closed
+    await http.aclose()
+
+
+async def test_injected_client_cannot_make_sdk_follow_redirects() -> None:
+    recorder = Recorder(httpx.Response(307, headers={"Location": "https://evil.test/"}))
+    http = httpx.AsyncClient(transport=httpx.MockTransport(recorder), follow_redirects=True)
+    with pytest.raises(exc.ElToqueAPIError):
+        await AsyncElToqueClient(TOKEN, http_client=http).get_latest_rates()
+    assert len(recorder.requests) == 1
+    await http.aclose()
+
+
+async def test_http_client_and_transport_are_mutually_exclusive() -> None:
+    http = httpx.AsyncClient()
+    with pytest.raises(exc.ElToqueConfigurationError):
+        AsyncElToqueClient(TOKEN, http_client=http, transport=httpx.MockTransport(Recorder()))
+    await http.aclose()

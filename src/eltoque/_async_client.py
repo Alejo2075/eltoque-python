@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import httpx
 
@@ -15,10 +15,11 @@ from eltoque._transport import (
     parse_response,
     translate_exception,
 )
-from eltoque.exceptions import ElToqueConfigurationError
+from eltoque.exceptions import ElToqueConfigurationError, ElToqueError
 
 if TYPE_CHECKING:
     from datetime import date, datetime
+    from types import TracebackType
 
     from eltoque.models import RatesResponse
 
@@ -52,6 +53,19 @@ class AsyncElToqueClient:
         self._http = http_client or httpx.AsyncClient(
             timeout=self._config.timeout, follow_redirects=FOLLOW_REDIRECTS, transport=transport
         )
+        self._closed = False
+
+    async def __aenter__(self) -> Self:
+        self._ensure_open()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        await self.aclose()
 
     def __repr__(self) -> str:
         return f"AsyncElToqueClient(base_url={self._config.base_url!r})"
@@ -69,11 +83,18 @@ class AsyncElToqueClient:
         return await self.get_rates(*day_range(day))
 
     async def aclose(self) -> None:
-        """Release the connection pool (only if this client created it)."""
-        if self._owns_http:
-            await self._http.aclose()
+        """Release the connection pool (only if this client created it). Idempotent."""
+        if not self._closed:
+            self._closed = True
+            if self._owns_http:
+                await self._http.aclose()
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise ElToqueError("this client is closed; create a new AsyncElToqueClient")
 
     async def _get(self, date_range: tuple[str, str] | None) -> RatesResponse:
+        self._ensure_open()
         url, params, headers = build_request_parts(self._config, date_range)
         request = self._http.build_request("GET", url, params=params or None, headers=headers)
         try:
