@@ -6,6 +6,7 @@ import pytest
 from eltoque import exceptions as exc
 from eltoque._config import ClientConfig
 from eltoque._transport import (
+    FOLLOW_REDIRECTS,
     USER_AGENT,
     aread_limited,
     build_request_parts,
@@ -14,6 +15,7 @@ from eltoque._transport import (
     error_for_response,
     make_excerpt,
     read_limited,
+    translate_exception,
 )
 
 CONFIG = ClientConfig(api_token="fake.token")
@@ -151,3 +153,35 @@ async def test_aread_limited_matches_sync_behaviour() -> None:
     assert (
         await aread_limited(httpx.Response(200, content=gen()), 10, strict=False) == b"0123456789"
     )
+
+
+@pytest.mark.parametrize(
+    "error",
+    [httpx.ConnectTimeout("t"), httpx.ReadTimeout("t"), httpx.PoolTimeout("t")],
+)
+def test_timeouts_translate_to_timeout_error(error: httpx.HTTPError) -> None:
+    translated = translate_exception(error)
+    assert type(translated) is exc.ElToqueTimeoutError
+    assert type(error).__name__ in str(translated)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        httpx.ConnectError("dns failure for https://h/?x=secret"),
+        httpx.ReadError("r"),
+        httpx.RemoteProtocolError("p"),
+    ],
+)
+def test_transport_failures_translate_to_network_error(error: httpx.HTTPError) -> None:
+    translated = translate_exception(error)
+    assert type(translated) is exc.ElToqueNetworkError
+    assert "secret" not in str(translated)
+
+
+def test_redirects_are_never_followed() -> None:
+    assert FOLLOW_REDIRECTS is False
+    for status in (301, 302, 303, 307, 308):
+        error = error_for_response(status, {"Location": "https://evil.test"}, b"", "tok")
+        assert error is not None
+        assert "evil.test" not in str(error)

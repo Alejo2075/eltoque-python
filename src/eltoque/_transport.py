@@ -6,14 +6,19 @@ import json
 import re
 from typing import TYPE_CHECKING, Any
 
+import httpx
+
 from eltoque._version import __version__
 from eltoque.exceptions import (
     ElToqueAPIError,
     ElToqueAuthenticationError,
     ElToqueBadRequestError,
     ElToqueDecodeError,
+    ElToqueError,
+    ElToqueNetworkError,
     ElToqueRateLimitError,
     ElToqueServerError,
+    ElToqueTimeoutError,
     ElToqueUnprocessableError,
 )
 from eltoque.models import RateLimitInfo
@@ -21,13 +26,13 @@ from eltoque.models import RateLimitInfo
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    import httpx
-
     from eltoque._config import ClientConfig
 
 TRMI_PATH = "/v1/trmi"
 USER_AGENT = f"eltoque-python/{__version__}"
 EXCERPT_LIMIT = 200
+# Never follow redirects: a cross-host 3xx would forward the bearer token.
+FOLLOW_REDIRECTS = False
 
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]+")
 _ERROR_TYPES: dict[int, tuple[type[ElToqueAPIError], str]] = {
@@ -133,3 +138,10 @@ def decode_json(body: bytes) -> Any:
         return json.loads(body)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ElToqueDecodeError("the response body is not valid JSON") from error
+
+
+def translate_exception(error: httpx.HTTPError) -> ElToqueError:
+    """Convert an httpx failure into an SDK exception without echoing URLs or headers."""
+    if isinstance(error, httpx.TimeoutException):
+        return ElToqueTimeoutError(f"the request timed out ({type(error).__name__})")
+    return ElToqueNetworkError(f"the request failed ({type(error).__name__})")
