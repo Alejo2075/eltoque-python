@@ -21,7 +21,7 @@ from eltoque.exceptions import (
     ElToqueTimeoutError,
     ElToqueUnprocessableError,
 )
-from eltoque.models import RateLimitInfo
+from eltoque.models import RateLimitInfo, RatesResponse
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -145,3 +145,17 @@ def translate_exception(error: httpx.HTTPError) -> ElToqueError:
     if isinstance(error, httpx.TimeoutException):
         return ElToqueTimeoutError(f"the request timed out ({type(error).__name__})")
     return ElToqueNetworkError(f"the request failed ({type(error).__name__})")
+
+
+def parse_response(
+    config: ClientConfig, status_code: int, headers: Mapping[str, str], body: bytes
+) -> RatesResponse:
+    """Turn a fully read HTTP response into a :class:`RatesResponse` or raise an SDK error."""
+    error = error_for_response(status_code, headers, body, config.api_token)
+    if error is not None:
+        raise error
+    return RatesResponse(
+        data=decode_json(body),
+        status_code=status_code,
+        rate_limit=RateLimitInfo.from_headers(headers),
+    )
