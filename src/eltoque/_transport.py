@@ -141,7 +141,11 @@ def decode_json(body: bytes) -> Any:
 
 
 def translate_exception(error: httpx.HTTPError) -> ElToqueError:
-    """Convert an httpx failure into an SDK exception without echoing URLs or headers."""
+    """Convert an httpx failure into an SDK exception without echoing URLs or headers.
+
+    Callers raise the result ``from None``: the original message is dropped on purpose, since a
+    custom transport could put arbitrary text (even credentials) in it. Only the type name stays.
+    """
     if isinstance(error, httpx.TimeoutException):
         return ElToqueTimeoutError(f"the request timed out ({type(error).__name__})")
     return ElToqueNetworkError(f"the request failed ({type(error).__name__})")

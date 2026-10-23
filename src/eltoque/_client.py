@@ -132,5 +132,5 @@ class ElToqueClient:
             finally:
                 response.close()
         except httpx.HTTPError as error:
-            raise translate_exception(error) from error
+            raise translate_exception(error) from None
         return parse_response(self._config, response.status_code, response.headers, body)
