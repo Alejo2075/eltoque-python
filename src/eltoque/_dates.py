@@ -6,7 +6,7 @@ The upstream time zone is **not documented**, so values are never converted: onl
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from eltoque.exceptions import ElToqueValidationError
 
@@ -40,3 +40,14 @@ def validate_range(date_from: datetime, date_to: datetime) -> tuple[str, str]:
             "the interval must be shorter than 24 hours (the API answers HTTP 400 otherwise)"
         )
     return start.strftime(DATE_FORMAT), end.strftime(DATE_FORMAT)
+
+
+def day_range(day: date) -> tuple[datetime, datetime]:
+    """Return ``00:00:00`` and ``23:59:59`` of ``day`` as naive datetimes.
+
+    The provider's time zone is undocumented, so this is *not* a guaranteed complete
+    local calendar day; it is simply the widest whole-second window allowed in one date.
+    """
+    if isinstance(day, datetime) or not isinstance(day, date):
+        raise ElToqueValidationError("day must be a datetime.date (not a datetime)")
+    return datetime.combine(day, time(0, 0, 0)), datetime.combine(day, time(23, 59, 59))

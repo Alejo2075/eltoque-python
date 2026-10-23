@@ -1,8 +1,8 @@
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
 
-from eltoque._dates import validate_range
+from eltoque._dates import day_range, validate_range
 from eltoque.exceptions import ElToqueValidationError
 
 START = datetime(2022, 10, 27, 0, 0, 0)
@@ -58,3 +58,16 @@ def test_non_datetime_rejected(bad: object) -> None:
         validate_range(bad, START)  # type: ignore[arg-type]
     with pytest.raises(ElToqueValidationError, match="datetime"):
         validate_range(START, bad)  # type: ignore[arg-type]
+
+
+def test_day_range_covers_whole_day() -> None:
+    start, end = day_range(date(2022, 10, 27))
+    assert start == datetime(2022, 10, 27, 0, 0, 0)
+    assert end == datetime(2022, 10, 27, 23, 59, 59)
+    validate_range(start, end)  # always a legal window
+
+
+@pytest.mark.parametrize("bad", [datetime(2022, 10, 27, 5), "2022-10-27", None])
+def test_day_range_rejects_non_dates(bad: object) -> None:
+    with pytest.raises(ElToqueValidationError, match="date"):
+        day_range(bad)  # type: ignore[arg-type]
