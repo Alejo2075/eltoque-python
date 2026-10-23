@@ -8,10 +8,25 @@ version (`1.0.beta`).
 
 ## [Unreleased]
 
-### Documentation
+## [0.2.0] - 2026-10-23
 
-- `docs/api-contract.md` now records the HTTP 200 shape, query behavior and a provider-side rate-limit
-  anomaly observed against the live API on 2026-10-23 (shapes only; no values or tokens).
+First version validated against the live elTOQUE API (one approved token, 2026-10-23).
+
+### Added
+
+- `Rates` and `RatesResponse.rates`: a strictly validated, typed view of the confirmed payload
+  shape. Provider codes map to `Decimal` (no float noise, nothing rounded) and `reported_at` is a
+  naive `datetime`. Any mismatch raises `ElToqueDecodeError`; `RatesResponse.data` stays untouched.
+- `eltoque.ATTRIBUTION`: the source notice required by the terms of use.
+- `scripts/live_check.py` now also reports whether the typed view parses the real payload.
+
+### Changed
+
+- `docs/api-contract.md` records the HTTP 200 shape, query behavior (the API accepts a window of
+  exactly 24 h and a lone `date_from`, which the SDK still rejects) and a provider-side rate-limit
+  anomaly (stuck 429 with a negative `Retry-After`, which the SDK already ignores). Shapes only; no
+  values or tokens are stored.
+- README, Spanish guide and examples use the typed view and the attribution notice.
 
 ## [0.1.1] - 2026-10-23
 
