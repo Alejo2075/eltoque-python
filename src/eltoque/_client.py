@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Self
 import httpx
 
 from eltoque._config import DEFAULT_BASE_URL, DEFAULT_TIMEOUT, ClientConfig
-from eltoque._dates import validate_range
+from eltoque._dates import day_range, validate_range
 from eltoque._retry import RetryPolicy
 from eltoque._transport import (
     FOLLOW_REDIRECTS,
@@ -20,7 +20,7 @@ from eltoque._transport import (
 from eltoque.exceptions import ElToqueConfigurationError, ElToqueError
 
 if TYPE_CHECKING:
-    from datetime import datetime
+    from datetime import date, datetime
     from types import TracebackType
 
     from eltoque.models import RatesResponse
@@ -89,6 +89,14 @@ class ElToqueClient:
         time zone is undocumented, so no conversion is applied.
         """
         return self._get(validate_range(date_from, date_to))
+
+    def get_rates_for_day(self, day: date) -> RatesResponse:
+        """Convenience for ``get_rates(day 00:00:00, day 23:59:59)``.
+
+        The provider time zone is undocumented, so this is not a guaranteed complete local
+        calendar day. One call makes exactly one request; no multi-day assembly is offered.
+        """
+        return self.get_rates(*day_range(day))
 
     def close(self) -> None:
         """Release the connection pool (only if this client created it). Idempotent."""

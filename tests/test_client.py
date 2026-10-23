@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import date, datetime
 
 import httpx
 import pytest
@@ -253,3 +253,17 @@ def test_decode_errors_are_not_retried(sleeps: list[float]) -> None:
 def test_invalid_max_retries_rejected() -> None:
     with pytest.raises(exc.ElToqueConfigurationError):
         ElToqueClient(TOKEN, max_retries=99)
+
+
+def test_get_rates_for_day_sends_one_request() -> None:
+    recorder = Recorder(json_response())
+    make(recorder).get_rates_for_day(date(2022, 10, 27))
+    assert len(recorder.requests) == 1
+    params = recorder.requests[0].url.params
+    assert params["date_from"] == "2022-10-27 00:00:00"
+    assert params["date_to"] == "2022-10-27 23:59:59"
+
+
+def test_get_rates_for_day_rejects_datetime() -> None:
+    with pytest.raises(exc.ElToqueValidationError):
+        make(Recorder(json_response())).get_rates_for_day(datetime(2022, 10, 27, 1))  # type: ignore[arg-type]
