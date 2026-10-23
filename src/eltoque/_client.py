@@ -15,7 +15,7 @@ from eltoque._transport import (
     read_limited,
     translate_exception,
 )
-from eltoque.exceptions import ElToqueError
+from eltoque.exceptions import ElToqueConfigurationError, ElToqueError
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -38,9 +38,19 @@ class ElToqueClient:
         base_url: str = DEFAULT_BASE_URL,
         timeout: float | httpx.Timeout = DEFAULT_TIMEOUT,
         transport: httpx.BaseTransport | None = None,
+        http_client: httpx.Client | None = None,
     ) -> None:
+        """Create a client.
+
+        ``transport`` is a test seam (e.g. ``httpx.MockTransport``). ``http_client`` lets you
+        share your own ``httpx.Client``: it is never closed by this SDK, its own timeout
+        applies (``timeout`` is ignored) and redirects are still not followed for our requests.
+        """
         self._config = ClientConfig(api_token=api_token, base_url=base_url, timeout=timeout)
-        self._http = httpx.Client(
+        if http_client is not None and transport is not None:
+            raise ElToqueConfigurationError("pass either http_client or transport, not both")
+        self._owns_http = http_client is None
+        self._http = http_client or httpx.Client(
             timeout=self._config.timeout, follow_redirects=FOLLOW_REDIRECTS, transport=transport
         )
         self._closed = False
@@ -73,10 +83,11 @@ class ElToqueClient:
         return self._get(validate_range(date_from, date_to))
 
     def close(self) -> None:
-        """Release the underlying connection pool. Safe to call more than once."""
+        """Release the connection pool (only if this client created it). Idempotent."""
         if not self._closed:
             self._closed = True
-            self._http.close()
+            if self._owns_http:
+                self._http.close()
 
     def _ensure_open(self) -> None:
         if self._closed:

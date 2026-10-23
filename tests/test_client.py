@@ -154,3 +154,36 @@ def test_closed_client_validates_nothing_and_sends_nothing() -> None:
     with pytest.raises(exc.ElToqueError, match="closed"):
         client.get_rates(datetime(2022, 10, 27), datetime(2022, 10, 27, 1))
     assert recorder.requests == []
+
+
+def test_injected_http_client_is_used_and_not_closed() -> None:
+    recorder = Recorder(json_response())
+    http = httpx.Client(transport=httpx.MockTransport(recorder))
+    with ElToqueClient(TOKEN, http_client=http) as client:
+        client.get_latest_rates()
+    assert len(recorder.requests) == 1
+    assert not http.is_closed
+    http.close()
+
+
+def test_owned_http_client_is_closed() -> None:
+    client = make(Recorder(json_response()))
+    client.close()
+    assert client._http.is_closed
+
+
+def test_injected_client_cannot_make_sdk_follow_redirects() -> None:
+    recorder = Recorder(httpx.Response(307, headers={"Location": "https://evil.test/"}))
+    http = httpx.Client(transport=httpx.MockTransport(recorder), follow_redirects=True)
+    with pytest.raises(exc.ElToqueAPIError) as info:
+        ElToqueClient(TOKEN, http_client=http).get_latest_rates()
+    assert info.value.status_code == 307
+    assert len(recorder.requests) == 1
+    http.close()
+
+
+def test_http_client_and_transport_are_mutually_exclusive() -> None:
+    http = httpx.Client()
+    with pytest.raises(exc.ElToqueConfigurationError):
+        ElToqueClient(TOKEN, http_client=http, transport=httpx.MockTransport(Recorder()))
+    http.close()
