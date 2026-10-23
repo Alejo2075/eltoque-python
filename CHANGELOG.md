@@ -8,6 +8,11 @@ version (`1.0.beta`).
 
 ## [Unreleased]
 
+### Documentation
+
+- `docs/api-contract.md` now records the HTTP 200 shape, query behavior and a provider-side rate-limit
+  anomaly observed against the live API on 2026-10-23 (shapes only; no values or tokens).
+
 ## [0.1.1] - 2026-10-23
 
 ### Added
