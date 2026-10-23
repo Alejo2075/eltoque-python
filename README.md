@@ -249,3 +249,10 @@ ELTOQUE_API_TOKEN=... ELTOQUE_ALLOW_LIVE_TESTS=1 uv run pytest -m integration --
 - Interactive docs: <https://tasas.eltoque.com/docs/>
 - OpenAPI document: <https://tasas.eltoque.com/static/swagger.json>
 - What is and is not verified: [docs/api-contract.md](docs/api-contract.md)
+
+## Community
+
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Security policy: [SECURITY.md](SECURITY.md)
+- Release notes: [CHANGELOG.md](CHANGELOG.md)
