@@ -123,3 +123,34 @@ def test_repr_has_no_token() -> None:
 def test_invalid_token_rejected_at_construction() -> None:
     with pytest.raises(exc.ElToqueConfigurationError):
         ElToqueClient("bad token")
+
+
+def test_context_manager_closes_client() -> None:
+    recorder = Recorder(json_response())
+    with make(recorder) as client:
+        client.get_latest_rates()
+    with pytest.raises(exc.ElToqueError, match="closed"):
+        client.get_latest_rates()
+    assert len(recorder.requests) == 1
+
+
+def test_close_is_idempotent() -> None:
+    client = make(Recorder(json_response()))
+    client.close()
+    client.close()
+
+
+def test_cannot_reenter_closed_client() -> None:
+    client = make(Recorder(json_response()))
+    client.close()
+    with pytest.raises(exc.ElToqueError, match="closed"), client:
+        pass
+
+
+def test_closed_client_validates_nothing_and_sends_nothing() -> None:
+    recorder = Recorder(json_response())
+    client = make(recorder)
+    client.close()
+    with pytest.raises(exc.ElToqueError, match="closed"):
+        client.get_rates(datetime(2022, 10, 27), datetime(2022, 10, 27, 1))
+    assert recorder.requests == []

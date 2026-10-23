@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import httpx
 
@@ -15,9 +15,11 @@ from eltoque._transport import (
     read_limited,
     translate_exception,
 )
+from eltoque.exceptions import ElToqueError
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from types import TracebackType
 
     from eltoque.models import RatesResponse
 
@@ -41,6 +43,19 @@ class ElToqueClient:
         self._http = httpx.Client(
             timeout=self._config.timeout, follow_redirects=FOLLOW_REDIRECTS, transport=transport
         )
+        self._closed = False
+
+    def __enter__(self) -> Self:
+        self._ensure_open()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def __repr__(self) -> str:
         return f"ElToqueClient(base_url={self._config.base_url!r})"
@@ -58,10 +73,17 @@ class ElToqueClient:
         return self._get(validate_range(date_from, date_to))
 
     def close(self) -> None:
-        """Release the underlying connection pool."""
-        self._http.close()
+        """Release the underlying connection pool. Safe to call more than once."""
+        if not self._closed:
+            self._closed = True
+            self._http.close()
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise ElToqueError("this client is closed; create a new ElToqueClient")
 
     def _get(self, date_range: tuple[str, str] | None) -> RatesResponse:
+        self._ensure_open()
         url, params, headers = build_request_parts(self._config, date_range)
         request = self._http.build_request("GET", url, params=params or None, headers=headers)
         try:
