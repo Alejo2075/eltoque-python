@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest an improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This SDK wraps one documented operation (`GET /v1/trmi`). Requests for undocumented
+        endpoints, scraping, shared tokens, proxies or bulk downloads will be declined.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API
+      description: Show the code you would like to write.
+      render: python
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Compliance
+      options:
+        - label: This is consistent with elTOQUE's terms of use and the official API documentation.
+          required: true
