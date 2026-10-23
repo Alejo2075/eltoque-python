@@ -1,8 +1,20 @@
+from collections.abc import AsyncIterator
+
+import httpx
 import pytest
 
 from eltoque import exceptions as exc
 from eltoque._config import ClientConfig
-from eltoque._transport import USER_AGENT, build_request_parts, error_for_response, make_excerpt
+from eltoque._transport import (
+    USER_AGENT,
+    aread_limited,
+    build_request_parts,
+    check_declared_length,
+    decode_json,
+    error_for_response,
+    make_excerpt,
+    read_limited,
+)
 
 CONFIG = ClientConfig(api_token="fake.token")
 
@@ -77,3 +89,65 @@ def test_excerpt_redacts_token_truncates_and_strips_control_chars() -> None:
     assert make_excerpt(b"", "t") is None
     assert make_excerpt(b" \n ", "t") is None
     assert make_excerpt(b"\xff\xfe", "t") is not None
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        (b'{"a": 1}', {"a": 1}),
+        (b"[1, 2]", [1, 2]),
+        (b'"text"', "text"),
+        (b"12.50", 12.5),
+        (b"null", None),
+        (b"true", True),
+        (b"  [] \n", []),
+    ],
+)
+def test_decode_json_preserves_any_json_value(body: bytes, expected: object) -> None:
+    assert decode_json(body) == expected
+
+
+@pytest.mark.parametrize("body", [b"", b"  \n", b"<html>", b"{bad", b"\xff\xfe\x00"])
+def test_decode_json_rejects_garbage(body: bytes) -> None:
+    with pytest.raises(exc.ElToqueDecodeError):
+        decode_json(body)
+
+
+def _streamed(body: bytes, headers: dict[str, str] | None = None) -> httpx.Response:
+    return httpx.Response(
+        200, content=iter([body[i : i + 4] for i in range(0, len(body), 4)]), headers=headers
+    )
+
+
+def test_read_limited_returns_full_body_under_limit() -> None:
+    assert read_limited(_streamed(b"0123456789"), 10) == b"0123456789"
+
+
+def test_read_limited_strict_raises_over_limit() -> None:
+    with pytest.raises(exc.ElToqueDecodeError, match="limit"):
+        read_limited(_streamed(b"0123456789A"), 10)
+
+
+def test_read_limited_non_strict_truncates() -> None:
+    assert read_limited(_streamed(b"0123456789ABCDEF"), 10, strict=False) == b"0123456789"
+
+
+def test_declared_content_length_rejected_before_reading() -> None:
+    response = httpx.Response(200, content=b"x", headers={"content-length": "999"})
+    # httpx recomputes nothing here: header is explicit, so the early check must trigger.
+    with pytest.raises(exc.ElToqueDecodeError):
+        check_declared_length(response.headers, 10, strict=True)
+    check_declared_length(response.headers, 10, strict=False)
+
+
+async def test_aread_limited_matches_sync_behaviour() -> None:
+    async def gen() -> AsyncIterator[bytes]:
+        for chunk in (b"0123", b"4567", b"89AB"):
+            yield chunk
+
+    assert await aread_limited(httpx.Response(200, content=gen()), 12) == b"0123456789AB"
+    with pytest.raises(exc.ElToqueDecodeError):
+        await aread_limited(httpx.Response(200, content=gen()), 10)
+    assert (
+        await aread_limited(httpx.Response(200, content=gen()), 10, strict=False) == b"0123456789"
+    )

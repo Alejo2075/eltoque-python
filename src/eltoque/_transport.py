@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from eltoque._version import __version__
 from eltoque.exceptions import (
     ElToqueAPIError,
     ElToqueAuthenticationError,
     ElToqueBadRequestError,
+    ElToqueDecodeError,
     ElToqueRateLimitError,
     ElToqueServerError,
     ElToqueUnprocessableError,
@@ -18,6 +20,8 @@ from eltoque.models import RateLimitInfo
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+    import httpx
 
     from eltoque._config import ClientConfig
 
@@ -76,3 +80,56 @@ def error_for_response(
         body_excerpt=make_excerpt(body, token),
         rate_limit=RateLimitInfo.from_headers(headers),
     )
+
+
+def _too_large(limit: int) -> ElToqueDecodeError:
+    return ElToqueDecodeError(f"response body exceeds the {limit}-byte limit")
+
+
+def check_declared_length(headers: Mapping[str, str], limit: int, *, strict: bool) -> None:
+    """Reject early when ``Content-Length`` already exceeds ``limit`` (strict mode only)."""
+    declared = headers.get("content-length", "")
+    if strict and declared.isascii() and declared.isdigit() and int(declared) > limit:
+        raise _too_large(limit)
+
+
+def read_limited(response: httpx.Response, limit: int, *, strict: bool = True) -> bytes:
+    """Read a streamed body. Over ``limit``: raise (strict) or truncate (non-strict)."""
+    check_declared_length(response.headers, limit, strict=strict)
+    chunks: list[bytes] = []
+    size = 0
+    for chunk in response.iter_bytes():
+        size += len(chunk)
+        if size > limit:
+            if strict:
+                raise _too_large(limit)
+            chunks.append(chunk[: len(chunk) - (size - limit)])
+            break
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+async def aread_limited(response: httpx.Response, limit: int, *, strict: bool = True) -> bytes:
+    """Async twin of :func:`read_limited`."""
+    check_declared_length(response.headers, limit, strict=strict)
+    chunks: list[bytes] = []
+    size = 0
+    async for chunk in response.aiter_bytes():
+        size += len(chunk)
+        if size > limit:
+            if strict:
+                raise _too_large(limit)
+            chunks.append(chunk[: len(chunk) - (size - limit)])
+            break
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+def decode_json(body: bytes) -> Any:
+    """Decode a JSON body exactly as sent; never substitute ``{}`` for bad input."""
+    if not body.strip():
+        raise ElToqueDecodeError("the response body is empty; expected JSON")
+    try:
+        return json.loads(body)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ElToqueDecodeError("the response body is not valid JSON") from error
