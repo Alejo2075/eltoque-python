@@ -7,8 +7,9 @@ define the HTTP 200 body, so the payload is exposed exactly as decoded.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -58,3 +59,20 @@ class RateLimitInfo:
             reset=_parse_int(lowered.get("x-ratelimit-reset")),
             retry_after=_parse_seconds(lowered.get("retry-after")),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class RatesResponse:
+    """Envelope around a successful ``GET /v1/trmi`` response.
+
+    ``data`` is the decoded JSON body, untouched: the provider has not published a schema for
+    HTTP 200, so no field names are guaranteed. ``status_code``, ``rate_limit`` and
+    ``received_at`` are SDK metadata, not provider fields.
+
+    Exchange rates are indicative, not official. Source: elTOQUE.
+    """
+
+    data: Any
+    status_code: int = 200
+    rate_limit: RateLimitInfo = field(default_factory=RateLimitInfo)
+    received_at: datetime = field(default_factory=lambda: datetime.now(UTC))
