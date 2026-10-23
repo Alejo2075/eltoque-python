@@ -21,9 +21,10 @@ from eltoque.exceptions import (
     ElToqueUnprocessableError,
     ElToqueValidationError,
 )
-from eltoque.models import RateLimitInfo, RatesResponse
+from eltoque.models import ATTRIBUTION, RateLimitInfo, Rates, RatesResponse
 
 __all__ = [
+    "ATTRIBUTION",
     "AsyncElToqueClient",
     "ElToqueAPIError",
     "ElToqueAuthenticationError",
@@ -39,6 +40,7 @@ __all__ = [
     "ElToqueUnprocessableError",
     "ElToqueValidationError",
     "RateLimitInfo",
+    "Rates",
     "RatesResponse",
     "__version__",
 ]
