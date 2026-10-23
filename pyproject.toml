@@ -28,7 +28,11 @@ classifiers = [
 dependencies = ["httpx>=0.28,<1"]
 
 [project.urls]
-Documentation = "https://tasas.eltoque.com/docs/"
+Homepage = "https://github.com/Alejo2075/eltoque-python"
+Source = "https://github.com/Alejo2075/eltoque-python"
+Issues = "https://github.com/Alejo2075/eltoque-python/issues"
+Changelog = "https://github.com/Alejo2075/eltoque-python/blob/main/CHANGELOG.md"
+"elTOQUE API docs" = "https://tasas.eltoque.com/docs/"
 
 [dependency-groups]
 dev = [
